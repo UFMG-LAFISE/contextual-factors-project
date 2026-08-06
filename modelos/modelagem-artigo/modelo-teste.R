@@ -8,7 +8,7 @@ library(broom.mixed)
 library(ggplot2)
 
 #Importando base de dados
-df <- read.csv('/home/leticia-gontijo/Documents/artigo-gui-mestrado/projeto_gui_mestrado/modelos/modelagem-artigo/base_dados_derivada_min (correção quartos).csv')
+df <- read.csv('/home/leticia-gontijo/Documents/artigo-gui-mestrado/projeto_gui_mestrado/contextual-factors-project/modelos/modelagem-artigo/base_dados_derivada_min (correção quartos).csv')
 
 #filtro: remove participações muito curtas (tempo em quadra <= 1 min)
 df <- df[df$playing_time > 1, ]
