@@ -48,12 +48,12 @@ Cada script ajusta 4 modelos mistos aninhados (adicionando efeitos fixos progres
 ```r
 DV ~ position + interval_c + quarter + age_c + playing_time_c +
      playng_venue + opponent_level_c + score_dif_c +
-     (1 | player) + (1 | match/qt_match)
+     (1 + quarter_lin | player) + (1 | match/qt_match)
 ```
 
 - **Efeitos aleatórios cruzados**: `player` e `match` — um atleta passa por vários jogos, um jogo tem vários atletas.
 - **Efeito aleatório aninhado**: `qt_match` (identificador único jogo×quarto) dentro de `match` — captura variação específica de cada quarto daquele jogo, além do que `match` já explica.
-- **Sem slope aleatório**: o modelo assume que a tendência entre quartos é igual para todos os atletas (decisão de padronização entre os 5 scripts — testes de razão de verossimilhança indicaram slope estatisticamente justificado para `trimp`, `miac` e `midc`, mas não para `tot_dist`/`mid`).
+- **Slope aleatório de quarto por atleta** (`quarter_lin`, versão numérica 1-4 de `quarter`, usada só dentro do termo aleatório): permite que cada atleta tenha sua própria inclinação de carga entre os 4 quartos, além do intercepto próprio. Aplicado de forma padronizada nos 5 scripts. Testes de razão de verossimilhança (com correção de fronteira) mostraram evidência estatística forte para `trimp`, `miac` e `midc`, e fraca para `tot_dist`/`mid` — mantido uniforme por decisão de padronização entre os scripts, não porque a evidência apontasse igual para todas as variáveis.
 - **Variáveis contínuas centralizadas** (`interval_c`, `age_c`, `playing_time_c`, `opponent_level_c`, `score_dif_c`): o intercepto representa a previsão para um atleta nas condições médias da amostra, não em valores como idade=0 ou tempo=0.
 - **Variáveis derivadas por-minuto reconstruídas em valor bruto** (`dist_total`, `mid_bruto`, `miac_bruto`, `midc_bruto` = taxa × `playing_time`), com `playing_time` entrando como efeito fixo em vez de divisor — evita a instabilidade estatística de dividir por tempo em quadra muito curto.
 
@@ -65,6 +65,7 @@ install.packages(c("lme4", "performance", "sjPlot", "broom.mixed", "ggplot2"))
 
 ### Limitações conhecidas
 
-- Resíduos com heterocedasticidade e não-normalidade detectadas em todos os modelos (mais acentuado em `dist_total`); testes com famílias alternativas (Gamma via `glmer`/`glmmTMB`, log-transformação, regressão robusta) não resolveram de forma conclusiva.
+- Resíduos com heterocedasticidade e não-normalidade detectadas em todos os modelos (mais acentuado em `dist_total`); testes com famílias alternativas (Gamma via `glmer`/`glmmTMB`, log-transformação, regressão robusta) não resolveram de forma conclusiva. O slope aleatório não altera a forma dos resíduos — só redistribui variância entre os efeitos aleatórios.
 - Autocorrelação residual entre quartos consecutivos do mesmo atleta no mesmo jogo (não modelada pelo `lme4`).
 - `score_dif` entra como variável única (sem decomposição entre-jogo/dentro-do-jogo) — o coeficiente reflete uma mistura dos dois efeitos.
+- Alguns modelos apresentam aviso leve de não-convergência (`max|grad|` pouco acima da tolerância) — não indica singularidade, mas vale reavaliar se a estrutura for alterada.

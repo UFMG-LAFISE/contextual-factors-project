@@ -19,6 +19,7 @@ df$match<- as.factor(df$match)
 df$qt_match<- as.factor(df$qt_match)
 df$playng_venue <- as.factor(df$playng_venue)
 df$position <- as.factor(df$position)
+df$quarter_lin <- as.numeric(df$quarter) #quarto como variável contínua, usado só no slope aleatório
 df$quarter <- as.factor(df$quarter)
 
 #Centralizacao
@@ -35,7 +36,7 @@ df$dist_total <- df$tot_dist * df$playing_time
 #modelo 1
 mixed_model1 <- lmer(
   dist_total ~ position + interval_c + quarter + age_c + playing_time_c + playng_venue + opponent_level_c + score_dif_c +
-    (1 | player)  + (1 | match/qt_match),
+    (1 + quarter_lin | player)  + (1 | match/qt_match),
   data = df, REML = FALSE
 )
 
