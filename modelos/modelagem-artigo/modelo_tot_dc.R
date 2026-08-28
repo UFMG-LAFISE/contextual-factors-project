@@ -116,6 +116,8 @@ tab_model(
   string.pred = "Preditores",
   string.est = "IRR (exp(Beta))",
   title = "Tabela. Modelos Mistos de Contagem (Binomial Negativa) para tot_dc (Total Deceleration) e Fatores Contextuais"
+  ,
+  file = if (exists("EXPORT_DIR")) file.path(EXPORT_DIR, paste0("tabela_", "tot_dc", ".html")) else NULL
 )
 
 #Gráficos do modelo 4 (modelo final)
@@ -142,6 +144,7 @@ grafico_efeitos_fixos <- ggplot(efeitos_fixos, aes(x = irr, y = reorder(term, ir
   theme(legend.position = "top")
 
 print(grafico_efeitos_fixos)
+if (exists("EXPORT_DIR")) ggsave(file.path(EXPORT_DIR, "graficos", "tot_dc_efeitos_fixos.png"), grafico_efeitos_fixos, width = 8, height = 6, dpi = 300)
 
 #2. CATERPILLAR PLOT - efeitos aleatórios por atleta (apenas intercepto - modelo nao tem slope)
 ranef_tidy <- broom.mixed::tidy(mixed_model4, effects = "ran_vals")
@@ -159,6 +162,7 @@ grafico_caterpillar <- ggplot(ranef_tidy, aes(x = estimate, y = reorder(level, e
   theme(axis.text.y = element_text(size = 6), legend.position = "top")
 
 print(grafico_caterpillar)
+if (exists("EXPORT_DIR")) ggsave(file.path(EXPORT_DIR, "graficos", "tot_dc_caterpillar.png"), grafico_caterpillar, width = 8, height = 10, dpi = 300)
 
 #--------------------------------------------------------------------------
 #3. DIAGNÓSTICO - pressupostos ADEQUADOS A DADOS DE CONTAGEM
@@ -172,3 +176,12 @@ print(check_zeroinflation(mixed_model4))
 
 cat("\n=== check_singularity (modelo 4) ===\n")
 print(check_singularity(mixed_model4))
+
+cat("\n=== check_model (modelo 4) ===\n")
+diagnostico_modelo4 <- check_model(mixed_model4)
+print(diagnostico_modelo4)
+if (exists("EXPORT_DIR")) {
+  png(file.path(EXPORT_DIR, "pressupostos", "tot_dc_check_model.png"), width = 1600, height = 1400, res = 150)
+  print(diagnostico_modelo4)
+  dev.off()
+}

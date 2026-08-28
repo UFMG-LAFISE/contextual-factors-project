@@ -87,6 +87,8 @@ tab_model(
   string.pred = "Preditores",
   string.est = "Estimativa (Beta)",
   title = "Tabela. Modelos Mistos para Mid (Moderate Intense Distance) e Fatores Contextuais"
+  ,
+  file = if (exists("EXPORT_DIR")) file.path(EXPORT_DIR, paste0("tabela_", "mid", ".html")) else NULL
 )
 
 
@@ -113,6 +115,7 @@ grafico_efeitos_fixos <- ggplot(efeitos_fixos, aes(x = estimate, y = reorder(ter
   theme(legend.position = "top")
 
 print(grafico_efeitos_fixos)
+if (exists("EXPORT_DIR")) ggsave(file.path(EXPORT_DIR, "graficos", "mid_efeitos_fixos.png"), grafico_efeitos_fixos, width = 8, height = 6, dpi = 300)
 
 #2. VARIAÇÃO INDIVIDUAL - trajetória prevista por atleta ao longo dos quartos
 ranef_player <- ranef(mixed_model4)$player
@@ -149,6 +152,7 @@ grafico_trajetorias <- ggplot() +
   theme_minimal(base_size = 12)
 
 print(grafico_trajetorias)
+if (exists("EXPORT_DIR")) ggsave(file.path(EXPORT_DIR, "graficos", "mid_trajetorias.png"), grafico_trajetorias, width = 8, height = 6, dpi = 300)
 
 #2b. CATERPILLAR PLOT - efeitos aleatórios por atleta (intercepto e slope)
 ranef_tidy <- broom.mixed::tidy(mixed_model4, effects = "ran_vals")
@@ -166,6 +170,13 @@ grafico_caterpillar <- ggplot(ranef_tidy, aes(x = estimate, y = reorder(level, e
   theme(axis.text.y = element_text(size = 6), legend.position = "top")
 
 print(grafico_caterpillar)
+if (exists("EXPORT_DIR")) ggsave(file.path(EXPORT_DIR, "graficos", "mid_caterpillar.png"), grafico_caterpillar, width = 8, height = 10, dpi = 300)
 
 #3. DIAGNÓSTICO - pressupostos do modelo 4
-check_model(mixed_model4)
+diagnostico_modelo4 <- check_model(mixed_model4)
+print(diagnostico_modelo4)
+if (exists("EXPORT_DIR")) {
+  png(file.path(EXPORT_DIR, "pressupostos", "mid_check_model.png"), width = 1600, height = 1400, res = 150)
+  print(diagnostico_modelo4)
+  dev.off()
+}
