@@ -1,19 +1,4 @@
-#Variável: Moderate intense acceleration (miac)
-#
-#miac é um DADO DE CONTAGEM (número de acelerações em zona moderada-intensa),
-#não uma variável contínua — a versão "por minuto" na base é só a contagem bruta
-#dividida pelo tempo em quadra. Por isso, em vez de reconstruir o valor bruto e
-#modelar com lmer() (como as outras 4 variáveis), aqui:
-#   - a contagem bruta é reconstruída (miac * playing_time, que recupera um inteiro)
-#   - o modelo é um GLMM de contagem (não LMM), com offset = log(playing_time)
-#     representando a exposição (tempo em quadra), no lugar de playing_time como
-#     covariável comum
-#   - playing_time entra SEM centralizar (offsets em modelos de contagem usam a
-#     escala natural da exposição, não faz sentido centralizar)
-#
-#Testamos Poisson vs. binomial negativa (ver nota antes dos modelos) - binomial
-#negativa venceu com folga por causa de superdispersão real nos dados.
-
+#Variável: High intense deceleration (hidc)
 
 # 1. Instalação e Carregamento de Pacotes
 if (!require("glmmTMB")) install.packages("glmmTMB")
@@ -47,10 +32,11 @@ df$playng_venue <- as.factor(df$playng_venue)
 df$position <- as.factor(df$position)
 df$quarter <- as.factor(df$quarter)
 
-#reconstrução da contagem bruta (miac já vem como taxa ACMI/tempo no tratamento;
-#multiplicando de volta por playing_time recupera a contagem original, que é
-#inteira a menos de erro de ponto flutuante - por isso o round())
-df$miac_count <- round(df$miac * df$playing_time)
+#reconstrução da contagem bruta 
+df$hidc_count <- round(df$hidc * df$playing_time)
+
+#exclusão dos zeros - não são eventos reais 
+df <- df[df$hidc_count > 0, ]
 
 #centralização das variáveis numéricas contínuas - EXCETO playing_time, que entra
 #sem centralizar, na escala natural, dentro do offset(log(playing_time))
@@ -62,14 +48,8 @@ df$score_dif_c <- as.numeric(scale(df$score_dif, scale = FALSE))
 #--------------------------------------------------------------------------
 # TESTE DE DISTRIBUIÇÃO: Poisson vs. binomial negativa
 #--------------------------------------------------------------------------
-#Poisson assume media = variancia. Testamos o modelo mais completo (equivalente
-#ao modelo 4) nas duas familias e comparamos por AIC + teste de superdispersao.
-#(Binomial "comum" não é adequada aqui: exige um número fixo de tentativas/
-#ensaios, que não existe para uma contagem de acelerações sem teto natural -
-#por isso a alternativa correta a testar contra Poisson é a binomial negativa,
-#não a binomial.)
 
-fx_teste <- "miac_count ~ position + interval_c + quarter + age_c + playng_venue + opponent_level_c + score_dif_c + offset(log(playing_time))"
+fx_teste <- "hidc_count ~ position + interval_c + quarter + age_c + playng_venue + opponent_level_c + score_dif_c + offset(log(playing_time))"
 re_teste <- "+ (1 | player) + (1 | match/qt_match)"
 
 teste_poisson <- glmmTMB(as.formula(paste(fx_teste, re_teste)), data = df, family = poisson(link = "log"))
@@ -82,8 +62,9 @@ cat("\nTeste de superdispersão (Poisson):\n")
 print(check_overdispersion(teste_poisson))
 cat("\nConclusão: se a Binomial Negativa tiver AIC menor e/ou o teste de\n")
 cat("superdispersão do Poisson indicar razão > 1 com p<0.05, a Binomial\n")
-cat("Negativa é a distribuição adequada (foi o resultado obtido: dispersão ~3.3,\n")
-cat("AIC bem menor na Binomial Negativa) - os 4 modelos abaixo usam nbinom2.\n")
+cat("Negativa é a distribuição adequada. Com os zeros (não-genuínos) excluídos,\n")
+cat("a Binomial Negativa comum já resolve a dispersão sem precisar de\n")
+cat("componente de inflação de zero - os 4 modelos abaixo usam nbinom2.\n")
 
 #--------------------------------------------------------------------------
 #MODELOS (Binomial Negativa, offset = log(playing_time))
@@ -91,28 +72,28 @@ cat("AIC bem menor na Binomial Negativa) - os 4 modelos abaixo usam nbinom2.\n")
 
 #modelo 1
 mixed_model1 <- glmmTMB(
-  miac_count ~ position + interval_c + quarter + age_c + offset(log(playing_time)) +
+  hidc_count ~ position + interval_c + quarter + age_c + offset(log(playing_time)) +
     (1 | player) + (1 | match/qt_match) ,
   data = df, family = nbinom2(link = "log")
 )
 
 #modelo 2
 mixed_model2 <- glmmTMB(
-  miac_count ~ position + interval_c + quarter + age_c + playng_venue + offset(log(playing_time)) +
+  hidc_count ~ position + interval_c + quarter + age_c + playng_venue + offset(log(playing_time)) +
     (1 | player) + (1 | match/qt_match) ,
   data = df, family = nbinom2(link = "log")
 )
 
 #modelo 3
 mixed_model3 <- glmmTMB(
-  miac_count ~ position + interval_c + quarter + age_c + playng_venue + opponent_level_c + offset(log(playing_time)) +
+  hidc_count ~ position + interval_c + quarter + age_c + playng_venue + opponent_level_c + offset(log(playing_time)) +
     (1 | player) + (1 | match/qt_match) ,
   data = df, family = nbinom2(link = "log")
 )
 
 #modelo 4
 mixed_model4 <- glmmTMB(
-  miac_count ~ position + interval_c + quarter + age_c + playng_venue + opponent_level_c + score_dif_c + offset(log(playing_time)) +
+  hidc_count ~ position + interval_c + quarter + age_c + playng_venue + opponent_level_c + score_dif_c + offset(log(playing_time)) +
     (1 | player) + (1 | match/qt_match) ,
   data = df, family = nbinom2(link = "log")
 )
@@ -133,10 +114,10 @@ tab_model(
   show.stat = TRUE,             # Mostra a estatística t
   p.style = "numeric_stars",    # Mostra p-value e estrelas (* p < 0.05)
   p.threshold = c(0.05, 0.01, 0.001),
-  dv.labels = c("modelo 1 Miac", "modelo 2 Miac", "modelo 3 Miac", "modelo 4 Miac"),
+  dv.labels = c("modelo 1 hidc", "modelo 2 hidc", "modelo 3 hidc", "modelo 4 hidc"),
   string.pred = "Preditores",
   string.est = "IRR (exp(Beta))",
-  title = "Tabela. Modelos Mistos de Contagem (Binomial Negativa) para Miac (Moderate Intense Acceleration) e Fatores Contextuais"
+  title = "Tabela. Modelos Mistos de Contagem (Binomial Negativa) para hidc (High Intense Deceleration) e Fatores Contextuais"
 )
 
 
@@ -160,7 +141,7 @@ grafico_efeitos_fixos <- ggplot(efeitos_fixos, aes(x = irr, y = reorder(term, ir
   geom_pointrange(aes(xmin = irr_low, xmax = irr_high), size = 0.6) +
   scale_color_manual(values = c("Positivo" = cor_positivo, "Negativo" = cor_negativo)) +
   labs(x = "IRR (razão de taxas de incidência)", y = NULL, color = NULL,
-       title = "Efeitos fixos - Modelo 4 (Miac, Binomial Negativa)") +
+       title = "Efeitos fixos - Modelo 4 (hidc, Binomial Negativa)") +
   theme_minimal(base_size = 12) +
   theme(legend.position = "top")
 
@@ -177,7 +158,7 @@ grafico_caterpillar <- ggplot(ranef_tidy, aes(x = estimate, y = reorder(level, e
   scale_color_manual(values = c("Positivo" = cor_positivo, "Negativo" = cor_negativo)) +
   facet_wrap(~ term, scales = "free_x") +
   labs(x = "Desvio em relação à média (escala log)", y = "Atleta", color = NULL,
-       title = "Efeitos aleatórios por atleta - Modelo 4 (Miac, Binomial Negativa)") +
+       title = "Efeitos aleatórios por atleta - Modelo 4 (hidc, Binomial Negativa)") +
   theme_minimal(base_size = 10) +
   theme(axis.text.y = element_text(size = 6), legend.position = "top")
 
@@ -186,16 +167,6 @@ print(grafico_caterpillar)
 #--------------------------------------------------------------------------
 #3. DIAGNÓSTICO - pressupostos ADEQUADOS A DADOS DE CONTAGEM
 #--------------------------------------------------------------------------
-#Não faz sentido usar check_normality()/check_heteroscedasticity() aqui - essas
-#checagens assumem resíduos gaussianos contínuos, o que não se aplica a um GLMM
-#de contagem. No lugar, os pressupostos relevantes são:
-#   - superdispersão (a binomial negativa já modela isso via theta, mas vale
-#     conferir se ainda sobra dispersão não capturada)
-#   - inflação de zeros (excesso de zeros além do que a distribuição prevê)
-#   - singularidade da estrutura de efeitos aleatórios
-#   - check_model() do pacote performance já se adapta automaticamente a modelos
-#     de contagem (troca os painéis de normalidade/homocedasticidade por
-#     verificação de dispersão e resíduos simulados/quantílicos)
 
 cat("\n=== check_overdispersion (modelo 4) ===\n")
 print(check_overdispersion(mixed_model4))
